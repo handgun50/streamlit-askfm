@@ -2,12 +2,14 @@ import streamlit as st
 import os
 from deta import Deta
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
 deta_key = os.getenv("DETA_KEY")
 deta_db = os.getenv("DETA_DB")
 answer_key=os.getenv("ANSWER_KEY")
+name=os.getenv("NAME")
 
 deta = Deta(deta_key)
 db = deta.Base(deta_db)
@@ -28,9 +30,24 @@ def form_callback_question_input():
     position=load_kv("question_position")
     if position is None:
         position=0
+
+    last_timestamp_input_question=load_kv("last_timestamp_input_question")
+
+    if last_timestamp_input_question is None:
+        last_timestamp_input_question=0
+
+    current_time=datetime.now().timestamp()
+    delta_time=current_time-last_timestamp_input_question
+
+    if delta_time<60:
+        st.error(f"Please wait {int(60-delta_time)} seconds before asking again")
+        return
+
     save_kv("question" + str(position), st.session_state.question_input)
     save_kv("question_position",position+1)
-    st.success(st.session_state.question_input)
+    save_kv("last_timestamp_input_question",datetime.now().timestamp())
+    st.success("Question : "+st.session_state.question_input)
+    st.cache_data.clear()
 
 def form_callback_answer_input():
     position = load_kv("question_position")
@@ -41,15 +58,22 @@ def form_callback_answer_input():
             answer = st.session_state["answer"+str(i)]
             answer=answer.replace(answer_key,"")
             save_kv("answer"+str(i),answer)
-            st.success(answer)
+            st.success("Answer : "+answer)
             st.cache_data.clear()
+            return
+        st.error("You are not allowed to answer question")
+
 
 with st.form(key='my_form'):
-    st.title("Ask a question")
+    st.title(f"Ask :red[{name}] a question")
     st.text_input('Ask a question',key="question_input",label_visibility="collapsed")
     submit_button = st.form_submit_button(label='Submit', on_click=form_callback_question_input)
 
 position=load_kv("question_position")
+
+if position is None:
+    position=0
+
 for i in reversed(range(position)):
     result=load_kv("question"+str(i))
 
