@@ -1,3 +1,4 @@
 streamlit
 deta
 python-dotenv
+discord-webhook
